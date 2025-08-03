@@ -286,3 +286,9 @@ footer {
   transform: scale(1.2);
   transition: transform 0.2s ease;
 }
+
+.comment a {
+  color: #007ab3;
+  text-decoration: underline;
+  font-weight: bold;
+}
