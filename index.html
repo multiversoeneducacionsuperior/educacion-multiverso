@@ -21,14 +21,24 @@
   </nav>
 
   <section class="new-question-form">
-    <input type="text" id="new-question-title" placeholder="Escribe aquí tu nueva pregunta" />
-    <button onclick="addNewQuestion()">Agregar pregunta</button>
+    <form id="formulario">
+      <input type="text" id="pregunta" placeholder="Escribe aquí tu nueva pregunta" required />
+      <select id="categoria">
+        <option value="Multialfabetismos">Multialfabetismos</option>
+        <option value="Estrategias didácticas">Estrategias didácticas</option>
+        <option value="Innovación">Innovación</option>
+        <option value="Aprendizajes">Aprendizajes</option>
+      </select>
+      <button type="submit">Agregar pregunta</button>
+    </form>
   </section>
 
-  <main id="questions-container"></main>
+  <main>
+    <div id="contenedor-preguntas"></div>
+  </main>
 
   <footer>
-    <p>Desarrollado por Carolina Ramírez Leal y Mónica siglyndy reyes Riveros · 2025</p>
+    <p>Desarrollado por Carolina Ramírez Leal y Mónica Siglyndy Reyes Riveros · 2025</p>
   </footer>
 
   <script type="module" src="firebase-init.js"></script>

@@ -1,155 +1,57 @@
 import { db } from './firebase-init.js';
 import {
-  collection,
-  getDoc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  onSnapshot
-} from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
+  ref,
+  push,
+  onValue,
+  remove
+} from "https://www.gstatic.com/firebasejs/10.5.0/firebase-database.js";
 
-const questionsRef = collection(db, "questions");
+const preguntasRef = ref(db, 'preguntas');
 
-document.addEventListener("DOMContentLoaded", () => {
-  onSnapshot(questionsRef, (snapshot) => {
-    const questions = [];
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      questions.push({ id: doc.id, ...data });
-    });
-    renderQuestions(questions);
-  });
+const form = document.getElementById('formulario');
+const preguntaInput = document.getElementById('pregunta');
+const categoriaSelect = document.getElementById('categoria');
+const contenedorPreguntas = document.getElementById('contenedor-preguntas');
+
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const pregunta = preguntaInput.value.trim();
+  const categoria = categoriaSelect.value;
+
+  if (pregunta === '') return;
+
+  const nuevaPregunta = {
+    texto: pregunta,
+    categoria: categoria,
+    timestamp: Date.now()
+  };
+
+  push(preguntasRef, nuevaPregunta);
+  preguntaInput.value = '';
 });
 
-async function addNewQuestion() {
-  const title = document.getElementById("new-question-title").value.trim();
-  if (!title) return;
-  await addDoc(questionsRef, { title, comments: [] });
-  document.getElementById("new-question-title").value = "";
-}
+onValue(preguntasRef, (snapshot) => {
+  contenedorPreguntas.innerHTML = '';
+  const data = snapshot.val();
+  if (data) {
+    const preguntasArray = Object.entries(data).sort((a, b) => b[1].timestamp - a[1].timestamp);
+    preguntasArray.forEach(([id, pregunta]) => {
+      const div = document.createElement('div');
+      div.classList.add('pregunta');
+      div.innerHTML = `
+        <h3>${pregunta.texto}</h3>
+        <p><strong>Categoría:</strong> ${pregunta.categoria}</p>
+        <button class="eliminar" data-id="${id}">🗑️ Eliminar</button>
+        <hr>
+      `;
+      contenedorPreguntas.appendChild(div);
+    });
 
-function renderQuestions(questions) {
-  const container = document.getElementById("questions-container");
-  const menu = document.getElementById("menu");
-  container.innerHTML = "";
-  menu.innerHTML = "";
-
-  questions.forEach((q) => {
-    const li = document.createElement("li");
-    li.innerHTML = `<a href="#${q.id}">${q.title.substring(0, 30)}...</a>`;
-    menu.appendChild(li);
-
-    const section = document.createElement("section");
-    section.className = "question-block";
-    section.id = q.id;
-
-    section.innerHTML = `
-      <div class="question-actions">
-        <button class="delete-question" onclick="confirmDelete('${q.id}')">🗑</button>
-        <button class="edit-question" onclick="editQuestionPrompt('${q.id}', '${q.title.replace(/'/g, "\\'")}')">✏️</button>
-      </div>
-      <h2 id="title-${q.id}">${q.title}</h2>
-      <div class="responses" id="responses-${q.id}"></div>
-      <form onsubmit="addComment(event, '${q.id}')">
-        <input type="text" id="author-${q.id}" placeholder="Nombre" required />
-        <textarea id="comment-${q.id}" placeholder="Escribe tu aporte..." required></textarea>
-        <button type="submit">Agregar comentario</button>
-      </form>
-    `;
-    container.appendChild(section);
-    renderComments(q);
-  });
-}
-
-async function addComment(event, qId) {
-  event.preventDefault();
-  const author = document.getElementById(`author-${qId}`).value.trim();
-  const text = document.getElementById(`comment-${qId}`).value.trim();
-  if (!author || !text) return;
-
-  const qDoc = doc(db, "questions", qId);
-  const qSnapshot = await getDoc(qDoc);
-  const qData = qSnapshot.data();
-  if (!Array.isArray(qData.comments)) qData.comments = [];
-
-  qData.comments.push({ author, text, votes: 0 });
-  await updateDoc(qDoc, { comments: qData.comments });
-
-  document.getElementById(`author-${qId}`).value = "";
-  document.getElementById(`comment-${qId}`).value = "";
-}
-
-function renderComments(question) {
-  const container = document.getElementById(`responses-${question.id}`);
-  container.innerHTML = "";
-
-  if (!Array.isArray(question.comments)) question.comments = [];
-
-  if (question.comments.length > 0) {
-    const label = document.createElement("h4");
-    label.textContent = "Comentarios anteriores:";
-    container.appendChild(label);
+    document.querySelectorAll('.eliminar').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        remove(ref(db, `preguntas/${id}`));
+      });
+    });
   }
-
-  question.comments.forEach((c, i) => {
-    const div = document.createElement("div");
-    div.className = "comment";
-    div.innerHTML = `
-      <strong>${c.author}</strong>: ${c.text}
-      <small>Votos: ${c.votes}</small>
-      <div style="display: flex; gap: 10px; margin-top: 0.5rem;">
-        <button onclick="voteComment('${question.id}', ${i})" class="like-button">👍</button>
-        <button onclick="deleteComment('${question.id}', ${i})" style="background:red; color:white;">×</button>
-      </div>
-    `;
-    container.appendChild(div);
-  });
-}
-
-async function voteComment(qId, index) {
-  const qDoc = doc(db, "questions", qId);
-  const qSnapshot = await getDoc(qDoc);
-  const qData = qSnapshot.data();
-  if (!Array.isArray(qData.comments)) qData.comments = [];
-
-  qData.comments[index].votes++;
-  await updateDoc(qDoc, { comments: qData.comments });
-}
-
-async function deleteComment(qId, index) {
-  const qDoc = doc(db, "questions", qId);
-  const qSnapshot = await getDoc(qDoc);
-  const qData = qSnapshot.data();
-  if (!Array.isArray(qData.comments)) qData.comments = [];
-
-  qData.comments.splice(index, 1);
-  await updateDoc(qDoc, { comments: qData.comments });
-}
-
-function confirmDelete(id) {
-  if (confirm("¿Estás seguro de eliminar esta pregunta?")) {
-    deleteQuestion(id);
-  }
-}
-
-async function deleteQuestion(id) {
-  const qDoc = doc(db, "questions", id);
-  await deleteDoc(qDoc);
-}
-
-async function editQuestionPrompt(id, currentTitle) {
-  const newTitle = prompt("Editar título:", currentTitle);
-  if (newTitle && newTitle.trim() !== "") {
-    const qDoc = doc(db, "questions", id);
-    await updateDoc(qDoc, { title: newTitle.trim() });
-  }
-}
-
-// Exponer funciones al scope global
-window.addNewQuestion = addNewQuestion;
-window.addComment = addComment;
-window.voteComment = voteComment;
-window.deleteComment = deleteComment;
-window.confirmDelete = confirmDelete;
-window.editQuestionPrompt = editQuestionPrompt;
+});
