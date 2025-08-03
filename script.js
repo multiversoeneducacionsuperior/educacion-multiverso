@@ -14,6 +14,12 @@ const contenedor = document.getElementById('questions-container');
 const inputPregunta = document.getElementById('new-question-title');
 const btnAgregar = document.querySelector('.new-question-form button');
 
+// TOAST de Like
+const toast = document.createElement('div');
+toast.className = 'like-toast';
+toast.textContent = '¡Gracias por votar!';
+document.body.appendChild(toast);
+
 // Escuchar preguntas en tiempo real
 onValue(preguntasRef, (snapshot) => {
   contenedor.innerHTML = '';
@@ -36,6 +42,11 @@ btnAgregar.addEventListener('click', () => {
   const nuevaRef = push(preguntasRef);
   set(nuevaRef, nueva);
   inputPregunta.value = '';
+
+  // Ir al nuevo bloque
+  setTimeout(() => {
+    location.hash = `#${nuevaRef.key}`;
+  }, 500);
 });
 
 // Renderizar pregunta
@@ -45,7 +56,7 @@ function renderPregunta(id, data) {
   div.id = id;
   div.innerHTML = `
     <div class="question-actions-row">
-      <h2>${data.texto}</h2>
+      <h2><a href="#${id}">${data.texto}</a></h2>
       <div class="actions">
         <button class="edit-question" onclick="editarPregunta('${id}', '${data.texto.replace(/'/g, "\\'")}')">✏️</button>
         <button class="delete-question" onclick="confirmarEliminacion('${id}')">🗑️</button>
@@ -77,9 +88,9 @@ function renderComentarios(id, comentarios) {
     div.innerHTML = `
       <strong>${comentario.autor}</strong>: ${comentario.texto}${archivo}
       <small>Votos: ${comentario.votos || 0}</small>
-      <div style="display:flex; gap:10px;">
-        <button onclick="votarComentario('${id}', ${index})">👍</button>
-        <button style="background:red;" onclick="eliminarComentario('${id}', ${index})">×</button>
+      <div class="comment-actions">
+        <button class="vote" onclick="votarComentario('${id}', ${index}, this)">👍</button>
+        <button class="delete" onclick="eliminarComentario('${id}', ${index})">×</button>
       </div>
     `;
     contenedor.appendChild(div);
@@ -123,15 +134,27 @@ function guardarComentario(id, nuevoComentario) {
   }, { onlyOnce: true });
 }
 
-// Votar
-window.votarComentario = (id, index) => {
+// Votar con efecto y toast
+window.votarComentario = (id, index, btn) => {
   onValue(ref(db, `preguntas/${id}`), (snapshot) => {
     const data = snapshot.val();
     if (!data || !data.comentarios || !data.comentarios[index]) return;
     data.comentarios[index].votos = (data.comentarios[index].votos || 0) + 1;
     update(ref(db, `preguntas/${id}`), { comentarios: data.comentarios });
+
+    // Efecto visual
+    if (btn) {
+      btn.classList.add('liked');
+      showToast();
+    }
   }, { onlyOnce: true });
 };
+
+// Mostrar Toast
+function showToast() {
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1500);
+}
 
 // Eliminar comentario
 window.eliminarComentario = (id, index) => {
@@ -143,82 +166,17 @@ window.eliminarComentario = (id, index) => {
   }, { onlyOnce: true });
 };
 
-// Crear modal genérico
-function crearModal(id, mensaje, onConfirm) {
-  const modalFondo = document.createElement('div');
-  modalFondo.className = 'modal-backdrop';
-  modalFondo.innerHTML = `
-    <div class="modal">
-      <h3>${mensaje}</h3>
-      <button class="confirm">Confirmar</button>
-      <button class="cancel">Cancelar</button>
-    </div>
-  `;
-  document.body.appendChild(modalFondo);
-
-  modalFondo.querySelector('.confirm').addEventListener('click', () => {
-    onConfirm();
-    document.body.removeChild(modalFondo);
-  });
-
-  modalFondo.querySelector('.cancel').addEventListener('click', () => {
-    document.body.removeChild(modalFondo);
-  });
-}
-
-// Confirmar eliminación con modal
-window.confirmarEliminacion = (id) => {
-  crearModal(id, '¿Deseas eliminar esta pregunta?', () => {
-    remove(ref(db, `preguntas/${id}`));
-  });
-};
-
-// Editar pregunta con modal
+// Editar pregunta
 window.editarPregunta = (id, textoActual) => {
-  const modalFondo = document.createElement('div');
-  modalFondo.className = 'modal-backdrop';
-  modalFondo.innerHTML = `
-    <div class="modal">
-      <h3>Editar pregunta</h3>
-      <input type="text" id="edit-input" value="${textoActual}">
-      <button class="confirm">Guardar</button>
-      <button class="cancel">Cancelar</button>
-    </div>
-  `;
-  document.body.appendChild(modalFondo);
-
-  modalFondo.querySelector('.confirm').addEventListener('click', () => {
-    const nuevo = document.getElementById('edit-input').value.trim();
-    if (nuevo !== '') {
-      update(ref(db, `preguntas/${id}`), { texto: nuevo });
-    }
-    document.body.removeChild(modalFondo);
-  });
-
-  modalFondo.querySelector('.cancel').addEventListener('click', () => {
-    document.body.removeChild(modalFondo);
-  });
-
-  // Votar
-window.votarComentario = (id, index) => {
-  const comentarioRef = ref(db, `preguntas/${id}`);
-  
-  onValue(comentarioRef, (snapshot) => {
-    const data = snapshot.val();
-    if (!data || !data.comentarios || !data.comentarios[index]) return;
-
-    // Incrementar el contador de votos
-    data.comentarios[index].votos = (data.comentarios[index].votos || 0) + 1;
-    update(comentarioRef, { comentarios: data.comentarios });
-
-    // Animación visual del botón de like
-    const boton = document.querySelector(`#respuestas-${id} .comment:nth-child(${index + 1}) button`);
-    if (boton) {
-      boton.classList.add('clicked');
-      setTimeout(() => boton.classList.remove('clicked'), 600);
-    }
-
-  }, { onlyOnce: true });
+  const nuevo = prompt("Editar pregunta:", textoActual);
+  if (nuevo && nuevo.trim() !== '') {
+    update(ref(db, `preguntas/${id}`), { texto: nuevo.trim() });
+  }
 };
 
+// Confirmar eliminación
+window.confirmarEliminacion = (id) => {
+  if (confirm("¿Eliminar esta pregunta?")) {
+    remove(ref(db, `preguntas/${id}`));
+  }
 };
