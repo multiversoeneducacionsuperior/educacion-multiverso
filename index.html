@@ -42,6 +42,27 @@
     <!-- Contenedor de preguntas -->
     <main id="questions-container"></main>
 
+    <!-- Modal para eliminar pregunta -->
+    <div class="modal-backdrop" id="delete-modal" style="display: none;">
+      <div class="modal">
+        <h3>¿Eliminar esta pregunta?</h3>
+        <button class="confirm" id="confirm-delete">Sí, eliminar</button>
+        <button class="cancel" onclick="closeModal('delete-modal')">Cancelar</button>
+      </div>
+    </div>
+
+    <!-- Modal para eliminar comentario -->
+    <div class="modal-backdrop" id="comment-delete-modal" style="display: none;">
+      <div class="modal">
+        <h3>¿Eliminar este comentario?</h3>
+        <button class="confirm" id="confirm-comment-delete">Sí, eliminar</button>
+        <button class="cancel" onclick="closeModal('comment-delete-modal')">Cancelar</button>
+      </div>
+    </div>
+
+    <!-- Toast para likes -->
+    <div class="like-toast" id="like-toast">¡Gracias por tu voto!</div>
+
     <footer>
       <p>
         Desarrollado por Carolina Ramírez Leal y Mónica Siglyndy Reyes Riveros ·

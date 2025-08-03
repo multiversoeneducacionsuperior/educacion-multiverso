@@ -8,23 +8,30 @@ import {
   update
 } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-database.js";
 
-// Referencias
 const preguntasRef = ref(db, 'preguntas');
 const contenedor = document.getElementById('questions-container');
 const inputPregunta = document.getElementById('new-question-title');
 const btnAgregar = document.querySelector('.new-question-form button');
 const menu = document.getElementById('menu');
 
-// Toast para votos
+let preguntaAEliminar = null;
+let comentarioAEliminar = { id: null, index: null };
+
 function showToast(text) {
-  const toast = document.createElement('div');
-  toast.className = 'like-toast show';
-  toast.innerText = text;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 2000);
+  const toast = document.getElementById('like-toast');
+  toast.textContent = text;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
 }
 
-// Escuchar preguntas
+function openModal(id) {
+  document.getElementById(id).style.display = 'flex';
+}
+
+function closeModal(id) {
+  document.getElementById(id).style.display = 'none';
+}
+
 onValue(preguntasRef, (snapshot) => {
   contenedor.innerHTML = '';
   menu.innerHTML = '';
@@ -38,7 +45,6 @@ onValue(preguntasRef, (snapshot) => {
   }
 });
 
-// Crear pregunta
 btnAgregar.addEventListener('click', () => {
   const texto = inputPregunta.value.trim();
   if (!texto) return;
@@ -52,7 +58,6 @@ btnAgregar.addEventListener('click', () => {
   inputPregunta.value = '';
 });
 
-// Renderizar pregunta
 function renderPregunta(id, data) {
   const div = document.createElement('section');
   div.className = 'question-block';
@@ -79,7 +84,6 @@ function renderPregunta(id, data) {
   renderComentarios(id, data.comentarios || []);
 }
 
-// Renderizar comentarios
 function renderComentarios(id, comentarios) {
   const contenedor = document.getElementById(`respuestas-${id}`);
   contenedor.innerHTML = comentarios.length > 0 ? '<h3>Comentarios anteriores</h3>' : '';
@@ -99,7 +103,6 @@ function renderComentarios(id, comentarios) {
   });
 }
 
-// Agregar comentario
 window.agregarComentario = async (e, id) => {
   e.preventDefault();
   const autor = document.getElementById(`autor-${id}`).value.trim();
@@ -107,9 +110,7 @@ window.agregarComentario = async (e, id) => {
   const archivoInput = document.getElementById(`archivo-${id}`);
   const archivo = archivoInput.files[0];
   const comentario = { autor, texto, votos: 0 };
-
   if (!autor || !texto) return;
-
   if (archivo) {
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -120,13 +121,11 @@ window.agregarComentario = async (e, id) => {
   } else {
     guardarComentario(id, comentario);
   }
-
   document.getElementById(`autor-${id}`).value = '';
   document.getElementById(`comentario-${id}`).value = '';
   archivoInput.value = '';
 };
 
-// Guardar comentario
 function guardarComentario(id, nuevoComentario) {
   onValue(ref(db, `preguntas/${id}`), (snapshot) => {
     const data = snapshot.val();
@@ -136,7 +135,6 @@ function guardarComentario(id, nuevoComentario) {
   }, { onlyOnce: true });
 }
 
-// Renderizar enlace al menú
 function renderEnlaceMenu(id, texto) {
   const li = document.createElement('li');
   const a = document.createElement('a');
@@ -146,7 +144,6 @@ function renderEnlaceMenu(id, texto) {
   menu.appendChild(li);
 }
 
-// Delegación de eventos para like y eliminación
 document.addEventListener('click', (e) => {
   if (e.target.classList.contains('vote')) {
     const id = e.target.dataset.id;
@@ -161,16 +158,9 @@ document.addEventListener('click', (e) => {
   }
 
   if (e.target.classList.contains('delete')) {
-    const id = e.target.dataset.id;
-    const index = parseInt(e.target.dataset.index);
-    if (confirm("¿Eliminar este comentario?")) {
-      onValue(ref(db, `preguntas/${id}`), (snapshot) => {
-        const data = snapshot.val();
-        if (!data || !data.comentarios) return;
-        data.comentarios.splice(index, 1);
-        update(ref(db, `preguntas/${id}`), { comentarios: data.comentarios });
-      }, { onlyOnce: true });
-    }
+    comentarioAEliminar.id = e.target.dataset.id;
+    comentarioAEliminar.index = parseInt(e.target.dataset.index);
+    openModal('comment-delete-modal');
   }
 
   if (e.target.classList.contains('edit-question')) {
@@ -183,9 +173,27 @@ document.addEventListener('click', (e) => {
   }
 
   if (e.target.classList.contains('delete-question')) {
-    const id = e.target.dataset.id;
-    if (confirm("¿Eliminar esta pregunta?")) {
-      remove(ref(db, `preguntas/${id}`));
-    }
+    preguntaAEliminar = e.target.dataset.id;
+    openModal('delete-modal');
   }
+});
+
+document.getElementById('confirm-delete').addEventListener('click', () => {
+  if (preguntaAEliminar) {
+    remove(ref(db, `preguntas/${preguntaAEliminar}`));
+    closeModal('delete-modal');
+    preguntaAEliminar = null;
+  }
+});
+
+document.getElementById('confirm-comment-delete').addEventListener('click', () => {
+  const { id, index } = comentarioAEliminar;
+  onValue(ref(db, `preguntas/${id}`), (snapshot) => {
+    const data = snapshot.val();
+    if (!data || !data.comentarios) return;
+    data.comentarios.splice(index, 1);
+    update(ref(db, `preguntas/${id}`), { comentarios: data.comentarios });
+    closeModal('comment-delete-modal');
+    comentarioAEliminar = { id: null, index: null };
+  }, { onlyOnce: true });
 });
