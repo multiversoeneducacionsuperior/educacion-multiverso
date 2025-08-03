@@ -1,14 +1,35 @@
-let questions = JSON.parse(localStorage.getItem("questions")) || [];
+import { db } from './firebase-init.js';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
+
+const questionsRef = collection(db, "questions");
 
 document.addEventListener("DOMContentLoaded", () => {
-  renderQuestions();
+  onSnapshot(questionsRef, (snapshot) => {
+    const questions = [];
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      questions.push({ id: doc.id, ...data });
+    });
+    renderQuestions(questions);
+  });
 });
 
-function saveQuestions() {
-  localStorage.setItem("questions", JSON.stringify(questions));
+async function addNewQuestion() {
+  const title = document.getElementById("new-question-title").value.trim();
+  if (!title) return;
+  await addDoc(questionsRef, { title, comments: [] });
+  document.getElementById("new-question-title").value = "";
 }
 
-function renderQuestions() {
+function renderQuestions(questions) {
   const container = document.getElementById("questions-container");
   const menu = document.getElementById("menu");
   container.innerHTML = "";
@@ -24,153 +45,97 @@ function renderQuestions() {
     section.id = q.id;
 
     section.innerHTML = `
+      <div class="question-actions">
+        <button class="delete-question" onclick="confirmDelete('${q.id}')">🗑</button>
+        <button class="edit-question" onclick="editQuestionPrompt('${q.id}', '${q.title.replace(/'/g, "\\'")}')">✏️</button>
+      </div>
       <h2 id="title-${q.id}">${q.title}</h2>
       <div class="responses" id="responses-${q.id}"></div>
-      <form onsubmit="addComment('${q.id}'); return false;">
+      <form onsubmit="addComment(event, '${q.id}')">
         <input type="text" id="author-${q.id}" placeholder="Nombre" required />
         <textarea id="comment-${q.id}" placeholder="Escribe tu aporte..." required></textarea>
         <button type="submit">Agregar comentario</button>
       </form>
-      <div class="comment-actions">
-        <button class="delete" onclick="showDeleteModal('${q.id}')">Eliminar</button>
-        <button class="vote" onclick="showEditModal('${q.id}')">Editar</button>
-      </div>
     `;
-
     container.appendChild(section);
-    renderComments(q.id);
-
-    const responses = section.querySelector(".responses");
-    const form = section.querySelector("form");
-    if (q.comments.length === 0) {
-      responses.style.display = "none";
-      form.classList.add("no-comments");
-    } else {
-      responses.style.display = "block";
-      form.classList.remove("no-comments");
-    }
+    renderComments(q);
   });
 }
 
-function addNewQuestion() {
-  const title = document.getElementById("new-question-title").value.trim();
-  if (!title) return;
-
-  const id = "q" + Date.now();
-  questions.push({ id, title, comments: [] });
-  saveQuestions();
-  renderQuestions();
-
-  document.getElementById("new-question-title").value = "";
-}
-
-function addComment(qId) {
+async function addComment(event, qId) {
+  event.preventDefault();
   const author = document.getElementById(`author-${qId}`).value.trim();
   const text = document.getElementById(`comment-${qId}`).value.trim();
   if (!author || !text) return;
 
-  const q = questions.find(q => q.id === qId);
-  q.comments.push({ author, text, votes: 0 });
-  saveQuestions();
-  renderComments(qId);
-  renderQuestions();
+  const qDoc = doc(db, "questions", qId);
+  const snapshot = await getDocs(questionsRef);
+  const qData = snapshot.docs.find(doc => doc.id === qId).data();
+
+  qData.comments.push({ author, text, votes: 0 });
+  await updateDoc(qDoc, { comments: qData.comments });
+
+  document.getElementById(`author-${qId}`).value = "";
+  document.getElementById(`comment-${qId}`).value = "";
 }
 
-function renderComments(qId) {
-  const q = questions.find(q => q.id === qId);
-  const container = document.getElementById(`responses-${qId}`);
+function renderComments(question) {
+  const container = document.getElementById(`responses-${question.id}`);
   container.innerHTML = "";
 
-  q.comments.forEach((c, i) => {
+  question.comments.forEach((c, i) => {
     const div = document.createElement("div");
     div.className = "comment";
-    const likedClass = c.votes > 0 ? "liked" : "";
     div.innerHTML = `
-      <strong>${c.author}</strong>
-      <p>${c.text}</p>
+      <strong>${c.author}</strong>: ${c.text}
       <small>Votos: ${c.votes}</small>
-      <div class="comment-actions">
-        <button class="vote ${likedClass}" onclick="voteComment('${qId}', ${i})" title="Me gusta">👍</button>
-        <button class="delete" onclick="deleteComment('${qId}', ${i})">✖</button>
+      <div style="display: flex; gap: 10px;">
+        <button onclick="voteComment('${question.id}', ${i})">👍</button>
+        <button onclick="deleteComment('${question.id}', ${i})" style="background:red;">×</button>
       </div>
     `;
     container.appendChild(div);
   });
 }
 
-function deleteComment(qId, index) {
-  const q = questions.find(q => q.id === qId);
-  q.comments.splice(index, 1);
-  saveQuestions();
-  renderComments(qId);
-  renderQuestions();
+async function voteComment(qId, index) {
+  const qDoc = doc(db, "questions", qId);
+  const snapshot = await getDocs(questionsRef);
+  const qData = snapshot.docs.find(doc => doc.id === qId).data();
+  qData.comments[index].votes++;
+  await updateDoc(qDoc, { comments: qData.comments });
 }
 
-function voteComment(qId, index) {
-  const q = questions.find(q => q.id === qId);
-  q.comments[index].votes++;
-  saveQuestions();
-  renderComments(qId);
-  showLikeToast();
+async function deleteComment(qId, index) {
+  const qDoc = doc(db, "questions", qId);
+  const snapshot = await getDocs(questionsRef);
+  const qData = snapshot.docs.find(doc => doc.id === qId).data();
+  qData.comments.splice(index, 1);
+  await updateDoc(qDoc, { comments: qData.comments });
 }
 
-function showLikeToast() {
-  const toast = document.createElement("div");
-  toast.className = "like-toast";
-  toast.innerHTML = "✅ ¡Gracias por tu voto!";
-  document.body.appendChild(toast);
-
-  setTimeout(() => {
-    toast.classList.add("show");
-    setTimeout(() => {
-      toast.classList.remove("show");
-      setTimeout(() => toast.remove(), 500);
-    }, 2000);
-  }, 100);
+function confirmDelete(id) {
+  if (confirm("¿Estás seguro de eliminar esta pregunta?")) {
+    deleteQuestion(id);
+  }
 }
 
-function showDeleteModal(id) {
-  const modal = document.createElement("div");
-  modal.className = "modal-backdrop";
-  modal.innerHTML = `
-    <div class="modal">
-      <h3>¿Deseas eliminar esta pregunta?</h3>
-      <button class="confirm" onclick="deleteQuestion('${id}')">Sí, eliminar</button>
-      <button class="cancel" onclick="this.closest('.modal-backdrop').remove()">Cancelar</button>
-    </div>
-  `;
-  document.body.appendChild(modal);
+async function deleteQuestion(id) {
+  const qDoc = doc(db, "questions", id);
+  await deleteDoc(qDoc);
 }
 
-function deleteQuestion(id) {
-  questions = questions.filter(q => q.id !== id);
-  saveQuestions();
-  renderQuestions();
-  document.querySelector(".modal-backdrop")?.remove();
+async function editQuestionPrompt(id, currentTitle) {
+  const newTitle = prompt("Editar título:", currentTitle);
+  if (newTitle && newTitle.trim() !== "") {
+    const qDoc = doc(db, "questions", id);
+    await updateDoc(qDoc, { title: newTitle.trim() });
+  }
 }
 
-function showEditModal(id) {
-  const q = questions.find(q => q.id === id);
-  const modal = document.createElement("div");
-  modal.className = "modal-backdrop";
-  modal.innerHTML = `
-    <div class="modal">
-      <h3>Editar pregunta</h3>
-      <input type="text" id="edit-title" value="${q.title}" />
-      <button class="confirm" onclick="editQuestion('${id}')">Guardar</button>
-      <button class="cancel" onclick="this.closest('.modal-backdrop').remove()">Cancelar</button>
-    </div>
-  `;
-  document.body.appendChild(modal);
-}
-
-function editQuestion(id) {
-  const newTitle = document.getElementById("edit-title").value.trim();
-  if (!newTitle) return;
-
-  const q = questions.find(q => q.id === id);
-  q.title = newTitle;
-  saveQuestions();
-  renderQuestions();
-  document.querySelector(".modal-backdrop")?.remove();
-}
+window.addNewQuestion = addNewQuestion;
+window.addComment = addComment;
+window.voteComment = voteComment;
+window.deleteComment = deleteComment;
+window.confirmDelete = confirmDelete;
+window.editQuestionPrompt = editQuestionPrompt;
