@@ -1,7 +1,7 @@
 import { db } from './firebase-init.js';
 import {
   collection,
-  getDocs,
+  getDoc,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -69,8 +69,9 @@ async function addComment(event, qId) {
   if (!author || !text) return;
 
   const qDoc = doc(db, "questions", qId);
-  const snapshot = await getDocs(questionsRef);
-  const qData = snapshot.docs.find(doc => doc.id === qId).data();
+  const qSnapshot = await getDoc(qDoc);
+  const qData = qSnapshot.data();
+  if (!Array.isArray(qData.comments)) qData.comments = [];
 
   qData.comments.push({ author, text, votes: 0 });
   await updateDoc(qDoc, { comments: qData.comments });
@@ -83,15 +84,23 @@ function renderComments(question) {
   const container = document.getElementById(`responses-${question.id}`);
   container.innerHTML = "";
 
+  if (!Array.isArray(question.comments)) question.comments = [];
+
+  if (question.comments.length > 0) {
+    const label = document.createElement("h4");
+    label.textContent = "Comentarios anteriores:";
+    container.appendChild(label);
+  }
+
   question.comments.forEach((c, i) => {
     const div = document.createElement("div");
     div.className = "comment";
     div.innerHTML = `
       <strong>${c.author}</strong>: ${c.text}
       <small>Votos: ${c.votes}</small>
-      <div style="display: flex; gap: 10px;">
-        <button onclick="voteComment('${question.id}', ${i})">👍</button>
-        <button onclick="deleteComment('${question.id}', ${i})" style="background:red;">×</button>
+      <div style="display: flex; gap: 10px; margin-top: 0.5rem;">
+        <button onclick="voteComment('${question.id}', ${i})" class="like-button">👍</button>
+        <button onclick="deleteComment('${question.id}', ${i})" style="background:red; color:white;">×</button>
       </div>
     `;
     container.appendChild(div);
@@ -100,16 +109,20 @@ function renderComments(question) {
 
 async function voteComment(qId, index) {
   const qDoc = doc(db, "questions", qId);
-  const snapshot = await getDocs(questionsRef);
-  const qData = snapshot.docs.find(doc => doc.id === qId).data();
+  const qSnapshot = await getDoc(qDoc);
+  const qData = qSnapshot.data();
+  if (!Array.isArray(qData.comments)) qData.comments = [];
+
   qData.comments[index].votes++;
   await updateDoc(qDoc, { comments: qData.comments });
 }
 
 async function deleteComment(qId, index) {
   const qDoc = doc(db, "questions", qId);
-  const snapshot = await getDocs(questionsRef);
-  const qData = snapshot.docs.find(doc => doc.id === qId).data();
+  const qSnapshot = await getDoc(qDoc);
+  const qData = qSnapshot.data();
+  if (!Array.isArray(qData.comments)) qData.comments = [];
+
   qData.comments.splice(index, 1);
   await updateDoc(qDoc, { comments: qData.comments });
 }
@@ -133,6 +146,7 @@ async function editQuestionPrompt(id, currentTitle) {
   }
 }
 
+// Exponer funciones al scope global
 window.addNewQuestion = addNewQuestion;
 window.addComment = addComment;
 window.voteComment = voteComment;
