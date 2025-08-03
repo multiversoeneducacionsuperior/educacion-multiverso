@@ -24,15 +24,22 @@
       />
     </div>
 
+    <!-- Menú dinámico de preguntas -->
+    <nav>
+      <ul id="menu"></ul>
+    </nav>
+
+    <!-- Formulario de nueva pregunta -->
     <section class="new-question-form">
       <input
         type="text"
         id="new-question-title"
         placeholder="Escribe aquí tu nueva pregunta"
       />
-      <button>Agregar pregunta</button>
+      <button id="agregar-pregunta">Agregar pregunta</button>
     </section>
 
+    <!-- Contenedor de preguntas -->
     <main id="questions-container"></main>
 
     <footer>
@@ -42,7 +49,7 @@
       </p>
     </footer>
 
-    <script type="module" src="firebase-init.js"></script>
-    <script type="module" src="script.js"></script>
+    <script type="module" src="firebase-init.js" defer></script>
+    <script type="module" src="script.js" defer></script>
   </body>
 </html>
