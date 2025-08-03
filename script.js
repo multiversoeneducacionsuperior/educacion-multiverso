@@ -143,17 +143,82 @@ window.eliminarComentario = (id, index) => {
   }, { onlyOnce: true });
 };
 
-// Editar pregunta
-window.editarPregunta = (id, textoActual) => {
-  const nuevo = prompt("Editar pregunta:", textoActual);
-  if (nuevo && nuevo.trim() !== '') {
-    update(ref(db, `preguntas/${id}`), { texto: nuevo.trim() });
-  }
+// Crear modal genérico
+function crearModal(id, mensaje, onConfirm) {
+  const modalFondo = document.createElement('div');
+  modalFondo.className = 'modal-backdrop';
+  modalFondo.innerHTML = `
+    <div class="modal">
+      <h3>${mensaje}</h3>
+      <button class="confirm">Confirmar</button>
+      <button class="cancel">Cancelar</button>
+    </div>
+  `;
+  document.body.appendChild(modalFondo);
+
+  modalFondo.querySelector('.confirm').addEventListener('click', () => {
+    onConfirm();
+    document.body.removeChild(modalFondo);
+  });
+
+  modalFondo.querySelector('.cancel').addEventListener('click', () => {
+    document.body.removeChild(modalFondo);
+  });
+}
+
+// Confirmar eliminación con modal
+window.confirmarEliminacion = (id) => {
+  crearModal(id, '¿Deseas eliminar esta pregunta?', () => {
+    remove(ref(db, `preguntas/${id}`));
+  });
 };
 
-// Confirmar eliminación
-window.confirmarEliminacion = (id) => {
-  if (confirm("¿Eliminar esta pregunta?")) {
-    remove(ref(db, `preguntas/${id}`));
-  }
+// Editar pregunta con modal
+window.editarPregunta = (id, textoActual) => {
+  const modalFondo = document.createElement('div');
+  modalFondo.className = 'modal-backdrop';
+  modalFondo.innerHTML = `
+    <div class="modal">
+      <h3>Editar pregunta</h3>
+      <input type="text" id="edit-input" value="${textoActual}">
+      <button class="confirm">Guardar</button>
+      <button class="cancel">Cancelar</button>
+    </div>
+  `;
+  document.body.appendChild(modalFondo);
+
+  modalFondo.querySelector('.confirm').addEventListener('click', () => {
+    const nuevo = document.getElementById('edit-input').value.trim();
+    if (nuevo !== '') {
+      update(ref(db, `preguntas/${id}`), { texto: nuevo });
+    }
+    document.body.removeChild(modalFondo);
+  });
+
+  modalFondo.querySelector('.cancel').addEventListener('click', () => {
+    document.body.removeChild(modalFondo);
+  });
+
+  // Votar
+window.votarComentario = (id, index) => {
+  const comentarioRef = ref(db, `preguntas/${id}`);
+  
+  onValue(comentarioRef, (snapshot) => {
+    const data = snapshot.val();
+    if (!data || !data.comentarios || !data.comentarios[index]) return;
+
+    // Incrementar el contador de votos
+    data.comentarios[index].votos = (data.comentarios[index].votos || 0) + 1;
+    update(comentarioRef, { comentarios: data.comentarios });
+
+    // Animación visual del botón de like
+    const boton = document.querySelector(`#respuestas-${id} .comment:nth-child(${index + 1}) button`);
+    if (boton) {
+      boton.classList.add('clicked');
+      setTimeout(() => boton.classList.remove('clicked'), 600);
+    }
+
+  }, { onlyOnce: true });
+};
+
 };

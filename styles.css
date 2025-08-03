@@ -292,3 +292,15 @@ footer {
   text-decoration: underline;
   font-weight: bold;
 }
+/* Efecto visual al votar con animación flash-verde */
+@keyframes likeFlash {
+  0% { background-color: #00c853; transform: scale(1); }
+  50% { background-color: #a5d6a7; transform: scale(1.2); }
+  100% { background-color: transparent; transform: scale(1); }
+}
+
+button.vote.clicked {
+  animation: likeFlash 0.6s ease;
+  font-weight: bold;
+  color: green;
+}
