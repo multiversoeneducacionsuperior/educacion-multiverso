@@ -1,0 +1,288 @@
+body {
+  font-family: 'Segoe UI', sans-serif;
+  margin: 0;
+  background: linear-gradient(to right, #eef2f3, #8e9eab);
+  color: #222;
+  padding-bottom: 100px;
+  line-height: 1.6;
+}
+
+header {
+  background: linear-gradient(to right, #006699, #004466);
+  color: white;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+}
+
+.banner-wrapper {
+  width: 100%;
+  max-height: 320px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+  position: relative;
+}
+
+#main-banner {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+  border-bottom: 5px solid #004466;
+  filter: brightness(0.85) contrast(1.1) saturate(1.2);
+  transition: all 0.5s ease-in-out;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+}
+
+nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+nav a {
+  color: white;
+  background: #007ab3;
+  padding: 8px 12px;
+  border-radius: 5px;
+  text-decoration: none;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+nav a:hover {
+  background: #005b87;
+  transform: scale(1.05);
+}
+
+.new-question-form {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.new-question-form input {
+  padding: 12px;
+  margin: 10px auto;
+  width: 90%;
+  max-width: 600px;
+  border: 2px solid #007ab3;
+  border-radius: 10px;
+  font-size: 1rem;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.1);
+}
+
+.new-question-form button {
+  background: #00cc88;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+main {
+  padding: 2rem;
+}
+
+.question-block {
+  margin-bottom: 3rem;
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 0 10px rgba(0,0,0,0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+}
+
+.responses::before {
+  content: "💬 Comentarios anteriores";
+  display: block;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  color: #004466;
+  font-size: 1rem;
+  border-bottom: 1px solid #007ab3;
+  padding-bottom: 0.3rem;
+}
+
+.responses:empty::before {
+  display: none;
+}
+
+form::before {
+  content: "➕ Agregar nuevo comentario";
+  display: block;
+  margin-top: 1.5rem;
+  font-weight: bold;
+  font-size: 1rem;
+  color: #004466;
+  margin-bottom: 0.5rem;
+}
+
+form.no-comments::before {
+  display: none;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+form input, form textarea {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+  width: 100%;
+}
+
+form button {
+  background: #007ab3;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+form button:hover {
+  background: #005b87;
+  transform: scale(1.03);
+}
+
+.comment {
+  background: #eef6fb;
+  border-left: 4px solid #007ab3;
+  padding: 1rem;
+  margin-bottom: 0.8rem;
+  border-radius: 4px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.comment-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.comment-actions button {
+  border: none;
+  padding: 4px 10px;
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.comment-actions .vote {
+  color: #007ab3;
+  background: none;
+}
+
+.comment-actions .vote.liked {
+  color: green;
+  font-weight: bold;
+}
+
+.comment-actions .delete {
+  background: #ff4444;
+  color: white;
+}
+
+.modal-backdrop {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  background: white;
+  border-radius: 10px;
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.modal h3 {
+  margin-bottom: 1rem;
+}
+
+.modal input {
+  width: 90%;
+  padding: 10px;
+  margin-bottom: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.modal .confirm {
+  background: #d32f2f;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  margin-right: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.modal .cancel {
+  background: #aaa;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+footer {
+  background: #003f5c;
+  color: white;
+  text-align: center;
+  padding: 1rem;
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+}
+/* TOAST de Voto */
+.like-toast {
+  position: fixed;
+  bottom: 60px;
+  right: 20px;
+  background: #00c853;
+  color: white;
+  padding: 12px 18px;
+  border-radius: 8px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.5s ease;
+  z-index: 9999;
+  font-weight: bold;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.like-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Animación botón de voto al hacer click */
+.comment-actions .vote:active {
+  transform: scale(1.2);
+  transition: transform 0.2s ease;
+}
