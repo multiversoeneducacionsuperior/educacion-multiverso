@@ -13,24 +13,32 @@ const preguntasRef = ref(db, 'preguntas');
 const contenedor = document.getElementById('questions-container');
 const inputPregunta = document.getElementById('new-question-title');
 const btnAgregar = document.querySelector('.new-question-form button');
+const menu = document.getElementById('menu');
 
-// TOAST de Like
-const toast = document.createElement('div');
-toast.className = 'like-toast';
-toast.textContent = '¡Gracias por votar!';
-document.body.appendChild(toast);
+// Toast para votos
+function showToast(text) {
+  const toast = document.createElement('div');
+  toast.className = 'like-toast show';
+  toast.innerText = text;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2000);
+}
 
-// Escuchar preguntas en tiempo real
+// Escuchar preguntas
 onValue(preguntasRef, (snapshot) => {
   contenedor.innerHTML = '';
+  menu.innerHTML = '';
   const data = snapshot.val();
   if (data) {
     const preguntas = Object.entries(data).sort((a, b) => b[1].timestamp - a[1].timestamp);
-    preguntas.forEach(([id, pregunta]) => renderPregunta(id, pregunta));
+    preguntas.forEach(([id, pregunta]) => {
+      renderPregunta(id, pregunta);
+      renderEnlaceMenu(id, pregunta.texto);
+    });
   }
 });
 
-// Agregar nueva pregunta
+// Crear pregunta
 btnAgregar.addEventListener('click', () => {
   const texto = inputPregunta.value.trim();
   if (!texto) return;
@@ -42,11 +50,6 @@ btnAgregar.addEventListener('click', () => {
   const nuevaRef = push(preguntasRef);
   set(nuevaRef, nueva);
   inputPregunta.value = '';
-
-  // Ir al nuevo bloque
-  setTimeout(() => {
-    location.hash = `#${nuevaRef.key}`;
-  }, 500);
 });
 
 // Renderizar pregunta
@@ -56,10 +59,10 @@ function renderPregunta(id, data) {
   div.id = id;
   div.innerHTML = `
     <div class="question-actions-row">
-      <h2><a href="#${id}">${data.texto}</a></h2>
+      <h2>${data.texto}</h2>
       <div class="actions">
-        <button class="edit-question" onclick="editarPregunta('${id}', '${data.texto.replace(/'/g, "\\'")}')">✏️</button>
-        <button class="delete-question" onclick="confirmarEliminacion('${id}')">🗑️</button>
+        <button class="edit-question" data-id="${id}" data-texto="${data.texto}">✏️</button>
+        <button class="delete-question" data-id="${id}">🗑️</button>
       </div>
     </div>
     <div class="responses" id="respuestas-${id}">
@@ -72,7 +75,6 @@ function renderPregunta(id, data) {
       <button type="submit">Agregar comentario</button>
     </form>
   `;
-
   contenedor.appendChild(div);
   renderComentarios(id, data.comentarios || []);
 }
@@ -88,9 +90,9 @@ function renderComentarios(id, comentarios) {
     div.innerHTML = `
       <strong>${comentario.autor}</strong>: ${comentario.texto}${archivo}
       <small>Votos: ${comentario.votos || 0}</small>
-      <div class="comment-actions">
-        <button class="vote" onclick="votarComentario('${id}', ${index}, this)">👍</button>
-        <button class="delete" onclick="eliminarComentario('${id}', ${index})">×</button>
+      <div style="display:flex; gap:10px;" class="comment-actions">
+        <button class="vote" data-id="${id}" data-index="${index}">👍</button>
+        <button class="delete" data-id="${id}" data-index="${index}">×</button>
       </div>
     `;
     contenedor.appendChild(div);
@@ -124,7 +126,7 @@ window.agregarComentario = async (e, id) => {
   archivoInput.value = '';
 };
 
-// Guardar comentario en Firebase
+// Guardar comentario
 function guardarComentario(id, nuevoComentario) {
   onValue(ref(db, `preguntas/${id}`), (snapshot) => {
     const data = snapshot.val();
@@ -134,49 +136,56 @@ function guardarComentario(id, nuevoComentario) {
   }, { onlyOnce: true });
 }
 
-// Votar con efecto y toast
-window.votarComentario = (id, index, btn) => {
-  onValue(ref(db, `preguntas/${id}`), (snapshot) => {
-    const data = snapshot.val();
-    if (!data || !data.comentarios || !data.comentarios[index]) return;
-    data.comentarios[index].votos = (data.comentarios[index].votos || 0) + 1;
-    update(ref(db, `preguntas/${id}`), { comentarios: data.comentarios });
-
-    // Efecto visual
-    if (btn) {
-      btn.classList.add('liked');
-      showToast();
-    }
-  }, { onlyOnce: true });
-};
-
-// Mostrar Toast
-function showToast() {
-  toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 1500);
+// Renderizar enlace al menú
+function renderEnlaceMenu(id, texto) {
+  const li = document.createElement('li');
+  const a = document.createElement('a');
+  a.href = `#${id}`;
+  a.innerText = texto;
+  li.appendChild(a);
+  menu.appendChild(li);
 }
 
-// Eliminar comentario
-window.eliminarComentario = (id, index) => {
-  onValue(ref(db, `preguntas/${id}`), (snapshot) => {
-    const data = snapshot.val();
-    if (!data || !data.comentarios) return;
-    data.comentarios.splice(index, 1);
-    update(ref(db, `preguntas/${id}`), { comentarios: data.comentarios });
-  }, { onlyOnce: true });
-};
-
-// Editar pregunta
-window.editarPregunta = (id, textoActual) => {
-  const nuevo = prompt("Editar pregunta:", textoActual);
-  if (nuevo && nuevo.trim() !== '') {
-    update(ref(db, `preguntas/${id}`), { texto: nuevo.trim() });
+// Delegación de eventos para like y eliminación
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('vote')) {
+    const id = e.target.dataset.id;
+    const index = parseInt(e.target.dataset.index);
+    onValue(ref(db, `preguntas/${id}`), (snapshot) => {
+      const data = snapshot.val();
+      if (!data || !data.comentarios || !data.comentarios[index]) return;
+      data.comentarios[index].votos = (data.comentarios[index].votos || 0) + 1;
+      update(ref(db, `preguntas/${id}`), { comentarios: data.comentarios });
+      showToast("¡Gracias por tu voto!");
+    }, { onlyOnce: true });
   }
-};
 
-// Confirmar eliminación
-window.confirmarEliminacion = (id) => {
-  if (confirm("¿Eliminar esta pregunta?")) {
-    remove(ref(db, `preguntas/${id}`));
+  if (e.target.classList.contains('delete')) {
+    const id = e.target.dataset.id;
+    const index = parseInt(e.target.dataset.index);
+    if (confirm("¿Eliminar este comentario?")) {
+      onValue(ref(db, `preguntas/${id}`), (snapshot) => {
+        const data = snapshot.val();
+        if (!data || !data.comentarios) return;
+        data.comentarios.splice(index, 1);
+        update(ref(db, `preguntas/${id}`), { comentarios: data.comentarios });
+      }, { onlyOnce: true });
+    }
   }
-};
+
+  if (e.target.classList.contains('edit-question')) {
+    const id = e.target.dataset.id;
+    const textoActual = e.target.dataset.texto;
+    const nuevo = prompt("Editar pregunta:", textoActual);
+    if (nuevo && nuevo.trim() !== '') {
+      update(ref(db, `preguntas/${id}`), { texto: nuevo.trim() });
+    }
+  }
+
+  if (e.target.classList.contains('delete-question')) {
+    const id = e.target.dataset.id;
+    if (confirm("¿Eliminar esta pregunta?")) {
+      remove(ref(db, `preguntas/${id}`));
+    }
+  }
+});
